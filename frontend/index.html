@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Interview Chatbot</title>
+  <meta charset="UTF-8">
+</head>
+<body>
+
+<h2>Interview Chatbot 🤖</h2>
+
+<div id="chat"></div>
+
+<input type="text" id="answer" placeholder="Type your answer"/>
+<button onclick="sendAnswer()">Send</button>
+
+<script>
+async function loadQuestion() {
+  console.log("Loading question...");
+
+  let res = await fetch("http://127.0.0.1:5000/question");
+  let data = await res.json();
+
+  console.log("Received:", data);
+
+  document.getElementById("chat").innerHTML += 
+    "<p><b>Bot:</b> " + data.question + "</p>";
+}
+
+async function sendAnswer() {
+  let answer = document.getElementById("answer").value;
+
+  let res = await fetch("http://127.0.0.1:5000/evaluate", {
+    method: "POST",
+    headers: {"Content-Type": "application/json"},
+    body: JSON.stringify({answer})
+  });
+
+  let data = await res.json();
+
+  document.getElementById("chat").innerHTML += 
+    "<p><b>You:</b> " + answer + "</p>";
+
+  document.getElementById("chat").innerHTML += 
+    "<p><b>Bot:</b> " + data.feedback + " (Score: " + data.score + ")</p>";
+
+  document.getElementById("answer").value = "";
+
+  loadQuestion(); // next question
+}
+
+// IMPORTANT: call function when page loads
+window.onload = loadQuestion;
+</script>
+
+</body>
+</html>
