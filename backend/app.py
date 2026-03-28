@@ -4,104 +4,131 @@ from flask_cors import CORS
 app = Flask(__name__)
 CORS(app)
 
-# 🟢 Questions
-questions = [
-    "What is binary search?",
-    "Explain OOP concepts",
-    "What is a database?"
-]
+# 🔥 SUBJECT-WISE QUESTIONS
+questions = {
+    "dsa": [
+        "What is binary search?",
+        "Explain linked list"
+    ],
+    "os": [
+        "What is a process?",
+        "Explain deadlock"
+    ],
+    "dbms": [
+        "What is normalization?",
+        "Explain SQL joins"
+    ]
+}
 
-# 🟢 Keywords for evaluation
-answers_keywords = [
-    ["sorted", "divide", "log", "binary"],
-    ["encapsulation", "inheritance", "polymorphism", "abstraction"],
-    ["data", "storage", "database", "table"]
-]
+# 🔥 KEYWORDS FOR EVALUATION
+answers_keywords = {
+    "dsa": [
+        ["sorted", "divide", "binary"],
+        ["node", "pointer"]
+    ],
+    "os": [
+        ["program", "execution"],
+        ["deadlock", "resource"]
+    ],
+    "dbms": [
+        ["normal", "redundancy"],
+        ["join", "table"]
+    ]
+}
 
-# 🟢 Global variables
 current_index = 0
+current_subject = ""
 total_score = 0
 
+# 🆕 TRACK COMPLETED SUBJECTS
+attended_subjects = set()
 
-# 🟢 Home route
 @app.route("/")
 def home():
     return "Interview Chatbot Backend Running 🚀"
 
-
-# 🟢 Get Question (AUTO RESET FIXED)
+# ✅ GET QUESTION
 @app.route("/question", methods=["GET"])
 def get_question():
-    global current_index, total_score
+    global current_index, current_subject, total_score
 
-    # 🔥 Reset when interview completed
-    if current_index >= len(questions):
+    subject = request.args.get("subject")
+
+    # 👉 When user selects subject
+    if subject:
+        # 🚫 Prevent reattempt
+        if subject in attended_subjects:
+            return jsonify({
+                "question": "❌ You already attended this subject. You cannot take it again."
+            })
+
+        current_subject = subject
         current_index = 0
         total_score = 0
 
-    return jsonify({"question": questions[current_index]})
+    if current_subject == "":
+        return jsonify({"question": "Please select a subject first"})
 
+    subject_questions = questions[current_subject]
 
-# 🟢 Evaluation Logic
-def evaluate_answer(question_index, answer):
-    keywords = answers_keywords[question_index]
+    if current_index < len(subject_questions):
+        return jsonify({"question": subject_questions[current_index]})
+    else:
+        # ✅ Mark subject as completed
+        attended_subjects.add(current_subject)
+
+        return jsonify({
+            "question": f"🎉 Interview completed for {current_subject.upper()}",
+            "total_score": total_score
+        })
+
+# 🔥 EVALUATION FUNCTION
+def evaluate_answer(answer):
+    global current_index, current_subject
+
+    keywords = answers_keywords[current_subject][current_index]
     score = 0
 
     answer = answer.lower()
 
     for word in keywords:
         if word in answer:
-            score += 2  # each keyword = 2 marks
+            score += 2
 
-    # 🟢 Feedback
-    if score >= 8:
-        feedback = "Excellent answer ✅"
-    elif score >= 5:
-        feedback = "Good answer 👍 but can improve"
-    elif score >= 3:
+    # Feedback
+    if score >= 4:
+        feedback = "Good answer 👍"
+    elif score >= 2:
         feedback = "Average answer ⚠️"
     else:
-        feedback = "Poor answer ❌ try explaining more"
+        feedback = "Poor answer ❌"
 
-    return score, f"{feedback} (Score: {score}/10)"
+    return score, feedback
 
-
-# 🟢 Evaluate Route
+# ✅ EVALUATE API
 @app.route("/evaluate", methods=["POST"])
 def evaluate():
     global current_index, total_score
 
     data = request.json
-    answer = data.get("answer", "")
+    answer = data.get("answer")
 
-    # If interview already completed
-    if current_index >= len(questions):
-        return jsonify({
-            "feedback": "Interview already completed 🎉",
-            "total_score": total_score
-        })
+    if current_subject == "":
+        return jsonify({"feedback": "Select subject first"})
 
-    # Evaluate answer
-    score, feedback = evaluate_answer(current_index, answer)
+    if current_index >= len(questions[current_subject]):
+        return jsonify({"feedback": "Interview already completed"})
+
+    score, feedback = evaluate_answer(answer)
 
     total_score += score
     current_index += 1
 
-    # 🔥 If last question → show final score
-    if current_index >= len(questions):
-        return jsonify({
-            "feedback": feedback,
-            "total_score": total_score,
-            "message": "Interview completed 🎉"
-        })
-
     return jsonify({
-        "feedback": feedback,
+        "feedback": f"{feedback} (Score: {score})",
         "total_score": total_score
     })
 
-
-# 🟢 Run App (Docker-friendly)
 if __name__ == "__main__":
     print("🚀 Server running...")
-    app.run(host="0.0.0.0", port=5000)
+    app.run(debug=True)

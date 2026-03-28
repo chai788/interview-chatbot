@@ -1,55 +1,150 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Interview Chatbot</title>
-  <meta charset="UTF-8">
+    <title>Interview Chatbot</title>
+
+    <style>
+        body {
+            font-family: Arial;
+            background: #f4f4f4;
+            text-align: center;
+        }
+
+        h2 {
+            margin-top: 20px;
+        }
+
+        #chat {
+            width: 60%;
+            margin: 20px auto;
+            padding: 10px;
+        }
+
+        .user-msg {
+            background: #d1e7dd;
+            padding: 12px;
+            margin: 10px;
+            border-radius: 10px;
+            text-align: left;
+        }
+
+        .bot-msg {
+            background: #ffffff;
+            padding: 12px;
+            margin: 10px;
+            border-radius: 10px;
+            text-align: left;
+        }
+
+        input {
+            padding: 10px;
+            width: 40%;
+        }
+
+        button {
+            padding: 10px;
+            margin: 5px;
+            cursor: pointer;
+        }
+    </style>
 </head>
+
 <body>
 
 <h2>Interview Chatbot 🤖</h2>
 
+<!-- SUBJECT -->
+<select id="subject">
+    <option value="">Select Subject</option>
+    <option value="dsa">DSA</option>
+    <option value="os">OS</option>
+    <option value="dbms">DBMS</option>
+</select>
+
+<button onclick="startInterview()">Start Interview</button>
+
+<hr>
+
 <div id="chat"></div>
 
-<input type="text" id="answer" placeholder="Type your answer"/>
-<button onclick="sendAnswer()">Send</button>
+<input type="text" id="answer" placeholder="Type your answer">
+<button onclick="submitAnswer()">Submit</button>
 
 <script>
-async function loadQuestion() {
-  console.log("Loading question...");
 
-  let res = await fetch("http://127.0.0.1:5000/question");
-  let data = await res.json();
+let selectedSubject = "";
 
-  console.log("Received:", data);
+// START INTERVIEW
+function startInterview() {
+    selectedSubject = document.getElementById("subject").value;
 
-  document.getElementById("chat").innerHTML += 
-    "<p><b>Bot:</b> " + data.question + "</p>";
+    if (!selectedSubject) {
+        alert("Please select a subject");
+        return;
+    }
+
+    document.getElementById("chat").innerHTML = "";
+
+    fetch(`http://127.0.0.1:5000/question?subject=${selectedSubject}`)
+    .then(res => res.json())
+    .then(data => {
+        addBotMessage(data.question);
+    });
 }
 
-async function sendAnswer() {
-  let answer = document.getElementById("answer").value;
+// SUBMIT ANSWER
+function submitAnswer() {
+    let answer = document.getElementById("answer").value;
 
-  let res = await fetch("http://127.0.0.1:5000/evaluate", {
-    method: "POST",
-    headers: {"Content-Type": "application/json"},
-    body: JSON.stringify({answer})
-  });
+    if (!answer) return;
 
-  let data = await res.json();
+    // FORMAT ANSWER
+    let formattedAnswer = answer
+        .replace(/\./g, ".<br>")
+        .replace(/→/g, "<br>➡ ");
 
-  document.getElementById("chat").innerHTML += 
-    "<p><b>You:</b> " + answer + "</p>";
+    addUserMessage(formattedAnswer);
 
-  document.getElementById("chat").innerHTML += 
-    "<p><b>Bot:</b> " + data.feedback + " (Score: " + data.score + ")</p>";
-
-  document.getElementById("answer").value = "";
-
-  loadQuestion(); // next question
+    fetch("http://127.0.0.1:5000/evaluate", {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json"
+        },
+        body: JSON.stringify({answer: answer})
+    })
+    .then(res => res.json())
+    .then(data => {
+        addBotMessage(data.feedback);
+        document.getElementById("answer").value = "";
+        getNextQuestion();
+    });
 }
 
-// IMPORTANT: call function when page loads
-window.onload = loadQuestion;
+// GET NEXT QUESTION
+function getNextQuestion() {
+    fetch(`http://127.0.0.1:5000/question`)
+    .then(res => res.json())
+    .then(data => {
+        addBotMessage(data.question);
+    });
+}
+
+// ADD USER MESSAGE
+function addUserMessage(msg) {
+    document.getElementById("chat").innerHTML += `
+    <div class="user-msg">
+        <b>You:</b><br>${msg}
+    </div>`;
+}
+
+// ADD BOT MESSAGE
+function addBotMessage(msg) {
+    document.getElementById("chat").innerHTML += `
+    <div class="bot-msg">
+        <b>Bot:</b><br>${msg}
+    </div>`;
+}
+
 </script>
 
 </body>
